@@ -1,0 +1,88 @@
+extensions:
+  memory_ballast:
+    size_mib: 512
+  zpages:
+    endpoint: 0.0.0.0:55679
+  health_check:
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+  opencensus:
+  # The following entry demonstrates configuring the common receiver settings:
+  # - endpoint
+  # This configuration is of type 'opencensus' and has the name 'customname' with a full name of 'opencensus/customname'
+  # ('<type>/<name>'. To reference this configuration in a pipeline, use the full name `opencensus/customname`.
+  opencensus/customname:
+    # The receiver will listen on endpoint: "0.0.0.0:9090".
+    endpoint: 0.0.0.0:9090
+  # The following entry configures all of the keep alive settings. These settings are used to configure the receiver.
+  opencensus/keepalive:
+    keepalive:
+      server_parameters:
+        max_connection_idle: 11s
+        max_connection_age: 12s
+        max_connection_age_grace: 13s
+        time: 30s
+        timeout: 5s
+      enforcement_policy:
+        min_time: 10s
+        permit_without_stream: true
+  # The following demonstrates how to set maximum limits on stream, message size and connection idle time.
+  # Note: The test yaml has demonstrated configuration on a grouped by their structure; however, all of the settings can
+  # be mix and matched like adding the maximum connection idle setting in this example.
+  opencensus/msg-size-conc-connect-max-idle:
+    max_recv_msg_size_mib: 32
+    max_concurrent_streams: 16
+    read_buffer_size: 1024
+    write_buffer_size: 1024
+    keepalive:
+      server_parameters:
+        max_connection_idle: 10s
+  # The following entry demonstrates how to specify TLS credentials for the server.
+  # Note: These files do not exist. If the receiver is started with this configuration, it will fail.
+  opencensus/tlscredentials:
+    tls:
+      cert_file: test.crt
+      key_file: test.key
+  # The following entry demonstrates how to specify a Unix Domain Socket for the server.
+  opencensus/uds:
+    transport: unix
+    endpoint: /tmp/opencensus.sock
+  # The following entry demonstrates how to configure the OpenCensus receiver to allow Cross-Origin Resource Sharing (CORS).
+  # Both fully qualified domain names and the use of wildcards are supported.
+  opencensus/cors:
+    cors_allowed_origins:
+    - https://*.test.com # Wildcard subdomain. Allows domains like https://www.test.com and https://foo.test.com but not https://wwwtest.com.
+    - https://test.com # Fully qualified domain name. Allows https://test.com only.
+
+processors:
+  batch:
+  memory_limiter:
+    # 75% of maximum memory up to 4G
+    limit_mib: 1536
+    # 25% of limit up to 2G
+    spike_limit_mib: 512
+    check_interval: 5s
+
+exporters:
+  logging:
+    loglevel: debug
+
+  prometheusremotewrite:
+    endpoint: "http://cortex:9009/api/v1/push"
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp,opencensus]
+      processors: [memory_limiter, batch]
+      exporters: [logging]
+    metrics:
+      receivers: [otlp,opencensus]
+      processors: [memory_limiter, batch]
+      exporters: [logging,prometheusremotewrite]
+
+  extensions: [memory_ballast, zpages,health_check]
