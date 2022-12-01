@@ -1,0 +1,132 @@
+version: "3.7"
+services:
+  grafana:
+    image: grafana/grafana
+    ports:
+      - 3000:3000
+    volumes:
+      - ./grafanaprovisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./grafanaprovisioning/dashboards:/etc/grafana/provisioning/dashboards
+    depends_on:
+      - cortex
+
+  telegraf:
+    image: telegraf:latest
+    container_name: telegraf
+    volumes: 
+     - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf
+    links:
+      - otelcol
+    ports:
+      - 8092:8092/udp
+      - 8094:8094
+      - 8125:8125/udp
+
+  cortex:
+    image: cortexproject/cortex:v1.8.1
+    volumes:
+      - ./cortex-config.yml:/etc/cortex-config/cortex.yaml
+    entrypoint:
+      - /bin/cortex
+      - -config.file=/etc/cortex-config/cortex.yaml
+    ports:
+      - 9009:9009
+      - 9095:9095/tcp
+
+  otelcol:
+    image: otel/opentelemetry-collector
+    container_name: otel-collector
+    command: ["--config=/etc/otel-collector-config.yml"]
+    volumes:
+      - ./otel-collector-config.yml:/etc/otel-collector-config.yml
+    links:
+      - cortex
+    ports:
+      - 1888:1888   # pprof extension
+      - 8888:8888   # Prometheus metrics exposed by the collector
+      - 8889:8889   # Prometheus exporter metrics
+  
+ 
+  oracle:
+    image:  wnameless/oracle-xe-11g-r2:18.04-apex
+    ports:
+      - 1521:1521
+      
+  oracle_exporter:
+    image: iamseth/oracledb_exporter
+    ports:
+      - 9161:9161
+    links:
+      - oracle
+    environment:
+      - DATA_SOURCE_NAME=system/oracle@oracle/xe
+    volumes:
+      - ./default-metrics.toml:/default-metrics.toml    
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: 'rabbitmq'
+    ports:
+        - 5672:5672
+        - 15672:15672
+    volumes:
+        - "./rabbit_enabled_plugins:/etc/rabbitmq/enabled_plugins"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+      
+  redis:
+    image: 'bitnami/redis:latest'
+    restart: always
+    ports:
+      - 6379:6379
+    command: redis-server --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
+  
+  tomcat:
+    image: tomcat
+    ports:
+      - 8080:8080
+    volumes:
+      - ./config/tomcat-users.xml:/usr/local/tomcat/conf/tomcat-users.xml
+      - ./config/webapps:/usr/local/tomcat/webapps
+  
+  mysql_container:
+    image: mysql:latest
+    container_name: mysql_container
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE= testdb1
+      - MYSQL_USER= testuser
+      - MYSQL_PASSWORD= root
+    ports:
+      - 3306:3306
+    volumes:
+      - mysql_db_data_container1:/var/lib/mysql
+  
+  postgres_container:
+    image: postgres:14.1-alpine
+    container_name: postgres_container
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - 5432:5432
+    volumes: 
+      - db:/var/lib/postgresql/data
+  
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.11.0
+    environment:
+      - xpack.security.enabled=false
+      - "discovery.type=single-node"
+    ports:
+      - 9200:9200
+volumes:
+  influxdb_data:  
+  mongodb:
+  mongoconfig:
+  db:
+    driver: local
+  mysql_db_data_container1:
+  setup:
+  elasticsearch:
