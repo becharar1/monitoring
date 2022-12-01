@@ -70,19 +70,7 @@ services:
       - DATA_SOURCE_NAME=system/oracle@oracle/xe
     volumes:
       - ./config/default-metrics.toml:/default-metrics.toml    
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    container_name: 'rabbitmq'
-    ports:
-        - 5672:5672
-        - 15672:15672
-    volumes:
-        - "./config/rabbit_enabled_plugins:/etc/rabbitmq/enabled_plugins"
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-#      RABBITMQ_DEFAULT_VHOST: /
-#      RABBITMQ_NODENAME: rabbitmq@rabbitmq
+
   redis:
     image: 'bitnami/redis:latest'
     restart: always
